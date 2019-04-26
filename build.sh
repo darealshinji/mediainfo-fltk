@@ -2,22 +2,27 @@
 set -e
 set -x
 
-pfx="$PWD/fltk-1.3.4/build/usr"
+top="$PWD"
+pfx="$PWD/fltk/build/usr"
 config="$pfx/bin/fltk-config"
 
-if [ ! -d fltk-1.3.4 ]; then
-  git clone "https://github.com/darealshinji/fltk-1.3.4"
-  mkdir fltk-1.3.4/build
-  cd fltk-1.3.4/build
+if [ ! -d fltk ]; then
+  git clone "https://github.com/fltk/fltk"
+  cd fltk
+  git checkout branch-1.3
+  mkdir build
+  cd build
   cmake .. -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$PWD/usr" \
     -DOPTION_ABI_VERSION=10304 \
     -DOPTION_BUILD_EXAMPLES=OFF \
     -DOPTION_OPTIM="-O3" \
-    -DOPTION_USE_GL=OFF
+    -DOPTION_USE_GL=OFF \
+    -DOPTION_USE_SYSTEM_LIBPNG=ON \
+    -DOPTION_USE_SYSTEM_ZLIB=ON
   make -j4
   make install
-  cd -
+  cd "$top"
 fi
 
 xxd -i icon.png > icon.h
