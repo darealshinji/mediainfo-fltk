@@ -1,10 +1,16 @@
 #!/bin/sh
-set -e
-set -x
 
+jobs=4
 top="$PWD"
 pfx="$PWD/fltk/build/usr"
 config="$pfx/bin/fltk-config"
+
+set -e
+set -x
+
+pkg-config --exists libzen
+pkg-config --exists libmediainfo
+pkg-config --exists xft  # FLTK looks ugly without it
 
 if [ ! -d fltk ]; then
   git clone "https://github.com/fltk/fltk"
@@ -20,16 +26,16 @@ if [ ! -d fltk ]; then
     -DOPTION_USE_GL=OFF \
     -DOPTION_USE_SYSTEM_LIBPNG=ON \
     -DOPTION_USE_SYSTEM_ZLIB=ON
-  make -j4
+  make -j$jobs
   make install
   cd "$top"
 fi
 
 xxd -i icon.png > icon.h
 
-CFLAGS="-Wall -Wshadow -O3 $(pkg-config --cflags libmediainfo)"
+CXXFLAGS="-Wall -Wshadow -O3 $(pkg-config --cflags libmediainfo libzen)"
 
-g++ $CFLAGS -I"$pfx/include/FL" $($config --use-images --cflags) -c mediainfo.cpp
-g++ $CFLAGS -c compact.cpp
-g++ -s -o mediainfo-gui *.o $($config --use-images --ldflags) $(pkg-config --libs libmediainfo)
+g++ $CXXFLAGS -I"$pfx/include/FL" $($config --use-images --cflags) -c mediainfo.cpp
+g++ $CXXFLAGS -c compact.cpp
+g++ -s -o mediainfo-fltk *.o $($config --use-images --ldflags) $(pkg-config --libs libmediainfo libzen)
 
