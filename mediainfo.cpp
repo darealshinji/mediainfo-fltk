@@ -69,9 +69,12 @@
 #define APP     "mediainfo-fltk"
 #define FL_MENU_DEFAULT  0
 
+using namespace MediaInfoLib;
+using namespace ZenLib;
+
 
 /* compact.cpp */
-extern void get_info(MediaInfoLib::MediaInfo &mi, ZenLib::Ztring &info);
+extern void get_info(MediaInfo &mi, Ztring &info);
 
 static Fl_Double_Window *win, *about_win;
 static MyTextDisplay *compact, *text;
@@ -193,8 +196,8 @@ static void tree_collapse_all_cb(Fl_Widget *, void *)
 
 static void load_file(const char *file)
 {
-  MediaInfoLib::MediaInfo mi;
-  ZenLib::Ztring ztr;
+  MediaInfo mi;
+  Ztring ztr;
   Fl_Text_Buffer *buff;
   std::string str, root;
   std::vector<std::string> vec;
@@ -557,14 +560,20 @@ int main(int argc, char *argv[])
 
   about_win = new Fl_Double_Window(260, 130, "About");
   {
-    MediaInfoLib::MediaInfo mi;
+    MediaInfo mi;
 
-    ZenLib::Ztring url = mi.Option(__T("Info_Url"));
-    ZenLib::Ztring ztr =
-      __T("<html><body bgcolor=silver><center><p></p><p>Using ")
-      + mi.Option(__T("Info_Version"))
-      + __T("</p><p></p><p><a href=\"") + url + __T("\">")
-      + url + __T("</a></p></center></body></html>");
+    int version = Fl::api_version();
+    int major = version / 10000;
+    int minor = (version % 10000) / 100;
+    int patch = version % 100;
+
+    Ztring url = mi.Option(__T("Info_Url"));
+    Ztring ztr =
+      __T("<html><body bgcolor=silver><center><p></p>"
+      "<p>") + mi.Option(__T("Info_Version")) + __T("<br><a href=\"") + url + __T("\">") + url + __T("</a></p>"
+      "<p>FLTK ") + Ztring::ToZtring(major) + __T(".") + Ztring::ToZtring(minor) + __T(".") + Ztring::ToZtring(patch) +
+      __T("<br><a href=\"https://www.fltk.org/\">https://www.fltk.org/</a></p>"
+      "</center></body></html>");
 
     { Fl_Help_View *o = new Fl_Help_View(0, 0, 260, 130);
      o->box(FL_FLAT_BOX);
