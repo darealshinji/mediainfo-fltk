@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2018-2019, djcj <djcj@gmx.de>
+ *  Copyright (c) 2018-2020, djcj <djcj@gmx.de>
  *
  *  The MediaInfo icon is Copyright (c) 2002-2018, MediaArea.net SARL
  *  All rights reserved.
@@ -46,15 +46,12 @@
 #include <FL/Fl_Tree.H>
 #include <FL/Fl_Double_Window.H>
 
-/* modified FLTK 1.3.4 header */
+/* modified FLTK 1.3 header */
 #include "Fl_Help_View.H"
 
 #ifdef __GNUC__
 # pragma GCC diagnostic pop
 #endif
-
-#include <MediaInfo/MediaInfo.h>
-#include <ZenLib/Ztring.h>
 
 #include <iostream>
 #include <string>
@@ -62,14 +59,22 @@
 #include <strings.h>
 #include <string.h>
 
+#ifdef MEDIAINFO_DYNAMIC
+# include "MediaInfoDLL/MediaInfoDLL.h"
+# define MEDIAINFONAMESPACE MediaInfoDLL;
+#else
+# include "MediaInfo/MediaInfo.h"
+# define MEDIAINFONAMESPACE MediaInfoLib;
+#endif
+#include <ZenLib/Ztring.h>
+
 #include "mediainfo.hpp"
 #include "icon.h"
 
 #define VENDOR  "https://github.com/darealshinji"
 #define APP     "mediainfo-fltk"
-#define FL_MENU_DEFAULT  0
 
-using namespace MediaInfoLib;
+using namespace MEDIAINFONAMESPACE;
 using namespace ZenLib;
 
 
@@ -344,7 +349,7 @@ static void view_tree_cb(Fl_Widget *, void *)
   text->hide();
   html->hide();
   view_set = "tree";
-  *flags_expand = *flags_collapse = FL_MENU_DEFAULT;
+  *flags_expand = *flags_collapse = 0;
 
   tree->show();
   tree->hposition(0);
@@ -436,6 +441,13 @@ static void close_cb(Fl_Widget *, void *v)
   }
 }
 
+#ifdef MEDIAINFO_DYNAMIC
+static int check_lib_loaded(void) {
+  MEDIAINFO_TEST_INT;  /* returns 0 on failure */
+  return 1;
+}
+#endif
+
 int main(int argc, char *argv[])
 {
   Fl_Group *g, *g_inside, *g_top;
@@ -443,6 +455,17 @@ int main(int argc, char *argv[])
   Fl_Text_Buffer *compact_buff, *text_buff;
   char *home, view_get[8] = {0};
   int *flags_compact, *flags_text, *flags_html, *flags_tree;
+
+  Fl_Window::default_icon(new Fl_PNG_Image(NULL, icon_png, icon_png_len));
+
+#ifdef MEDIAINFO_DYNAMIC
+  if (check_lib_loaded() == 0) {
+    fl_message_title("Error");
+    fl_alert("%s", "Unable to load " MEDIAINFODLL_NAME);
+    Fl::run();
+    return 1;
+  }
+#endif
 
   if ((home = getenv("HOME")) != NULL) {
     std::string s = std::string(home) + "/.config";
@@ -507,8 +530,6 @@ int main(int argc, char *argv[])
 
   /* http://fltk.org/str.php?L3465+P0+S-2+C0+I0+E0+V%25+QFL_SCREEN */
   Fl::set_font(FL_SCREEN, " mono");
-
-  Fl_Window::default_icon(new Fl_PNG_Image(NULL, icon_png, icon_png_len));
 
   win = new Fl_Double_Window(800, 600, "MediaInfo");
   win->callback(close_cb, pref);
@@ -589,7 +610,7 @@ int main(int argc, char *argv[])
     view_html_cb(NULL, NULL);
   } else if (strcasecmp(view_get, "tree") == 0) {
     *flags_tree = FL_MENU_RADIO|FL_MENU_VALUE|FL_MENU_DIVIDER;
-    *flags_expand = *flags_collapse = FL_MENU_DEFAULT;
+    *flags_expand = *flags_collapse = 0;
     view_tree_cb(NULL, NULL);
   } else {
     *flags_compact = FL_MENU_RADIO|FL_MENU_VALUE;

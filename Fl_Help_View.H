@@ -1,5 +1,5 @@
 //
-// "$Id: Fl_Help_View.H 11761 2016-05-31 09:12:40Z manolo $"
+// "$Id$"
 //
 // Help Viewer widget definitions.
 //
@@ -240,16 +240,24 @@ class FL_EXPORT Fl_Help_View : public Fl_Group {	// Help viewer widget
   static int    selection_push_last;
   static int    selection_drag_first;
   static int    selection_drag_last;
-protected:
+#if FLTK_ABI_VERSION >= 10303
+public:
+#endif
   static int    selected;
+#if FLTK_ABI_VERSION >= 10303
 private:
+#endif
   static int    draw_mode;
   static int    mouse_x;
   static int    mouse_y;
   static int    current_pos;
-protected:
+#if FLTK_ABI_VERSION >= 10303
+public:
+#endif
   static Fl_Help_View *current_view;
+#if FLTK_ABI_VERSION >= 10303
 private:
+#endif
   static Fl_Color hv_selection_color;
   static Fl_Color hv_selection_text_color;
 
@@ -290,9 +298,13 @@ private:
   void          hv_draw(const char *t, int x, int y, int entity_extra_length = 0);
   char          begin_selection();
   char          extend_selection();
-protected:
+#if FLTK_ABI_VERSION >= 10303
+public:
+#endif
   void          end_selection(int c=0);
+#if FLTK_ABI_VERSION >= 10303
 private:
+#endif
   void          clear_global_selection();
   Fl_Help_Link  *find_link(int, int);
   void          follow_link(Fl_Help_Link*);
@@ -401,5 +413,5 @@ public:
 #endif // !Fl_Help_View_H
 
 //
-// End of "$Id: Fl_Help_View.H 11761 2016-05-31 09:12:40Z manolo $".
+// End of "$Id$".
 //

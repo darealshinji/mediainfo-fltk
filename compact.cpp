@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2018-2019, djcj <djcj@gmx.de>
+ *  Copyright (c) 2018-2020, djcj <djcj@gmx.de>
  *
  *  BSD 2-Clause License
  *
@@ -25,16 +25,23 @@
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <MediaInfo/MediaInfo.h>
-#include <ZenLib/Ztring.h>
-
 #include <iostream>
 #include <string>
 #include <stdlib.h>
 #include <string.h>
 
-using namespace MediaInfoLib;
+#ifdef MEDIAINFO_DYNAMIC
+# include "MediaInfoDLL/MediaInfoDLL.h"
+# define MEDIAINFONAMESPACE MediaInfoDLL;
+#else
+# include "MediaInfo/MediaInfo.h"
+# define MEDIAINFONAMESPACE MediaInfoLib;
+#endif
+#include <ZenLib/Ztring.h>
+
+using namespace MEDIAINFONAMESPACE;
 using namespace ZenLib;
+
 
 void get_info(MediaInfo &mi, Ztring &info)
 {

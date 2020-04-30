@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2018-2019, djcj <djcj@gmx.de>
+ *  Copyright (c) 2018-2020, djcj <djcj@gmx.de>
  *
  *  BSD 2-Clause License
  *
