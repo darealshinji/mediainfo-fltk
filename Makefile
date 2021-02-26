@@ -1,5 +1,5 @@
-ifeq ("$(DYNAMIC)", "1")
-dynamic_option = dynamic
+ifeq ("$(DYNAMIC)", "0")
+dynamic_option = no-dynamic
 else
 dynamic_option =
 endif

@@ -1,7 +1,7 @@
 /*
- *  Copyright (c) 2018-2020, djcj <djcj@gmx.de>
+ *  Copyright (c) 2018-2021, djcj <djcj@gmx.de>
  *
- *  The MediaInfo icon is Copyright (c) 2002-2018, MediaArea.net SARL
+ *  The MediaInfo icon is Copyright (c) 2002-2021, MediaArea.net SARL
  *  All rights reserved.
  *
  *  BSD 2-Clause License
@@ -28,11 +28,6 @@
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef __GNUC__
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wshadow"
-#endif
-
 #include <FL/Fl.H>
 #include <FL/Fl_Button.H>
 #include <FL/Fl_Box.H>
@@ -48,10 +43,6 @@
 
 /* modified FLTK 1.3 header */
 #include "Fl_Help_View.H"
-
-#ifdef __GNUC__
-# pragma GCC diagnostic pop
-#endif
 
 #include <iostream>
 #include <string>
@@ -71,20 +62,21 @@
 #include "mediainfo.hpp"
 #include "icon.h"
 
-#define VENDOR  "https://github.com/darealshinji"
-#define APP     "mediainfo-fltk"
+#define VENDOR   "https://github.com/darealshinji"
+#define APPNAME  "mediainfo-fltk"
+#define DEL(x)   if (x) { delete x; }
 
 using namespace MEDIAINFONAMESPACE;
 using namespace ZenLib;
 
 
-/* compact.cpp */
-extern void get_info(MediaInfo &mi, Ztring &info);
+extern Ztring get_info(MediaInfo &mi);
+static void tree_collapse_all_cb(Fl_Widget *, void *);
 
-static Fl_Double_Window *win, *about_win;
-static MyTextDisplay *compact, *text;
-static MyHelpView *html;
-static MyTree *tree;
+static Fl_Double_Window *win = NULL, *about_win = NULL;
+static MyTextDisplay *compact = NULL, *text = NULL;
+static MyHelpView *html = NULL;
+static MyTree *tree = NULL;
 static const char *view_set = "compact";
 static int *flags_expand, *flags_collapse;
 
@@ -176,29 +168,6 @@ static void replace_string(const std::string &from, const std::string &to, std::
   }
 }
 
-static void do_nothing_cb(Fl_Widget *, void *) {
-}
-
-static void tree_expand_all_cb(Fl_Widget *, void *)
-{
-  Fl_Tree_Item *item = tree->first();
-
-  while (item != tree->last()) {
-    item = tree->next_item(item);
-    tree->open(item);
-  }
-}
-
-static void tree_collapse_all_cb(Fl_Widget *, void *)
-{
-  Fl_Tree_Item *item = tree->first();
-
-  while (item != tree->last()) {
-    item = tree->next_item(item);
-    tree->close(item);
-  }
-}
-
 static void load_file(const char *file)
 {
   MediaInfo mi;
@@ -223,11 +192,10 @@ static void load_file(const char *file)
   html->value(ztr.To_Local().c_str());
 
   /* compact info */
-  get_info(mi, ztr);
-  str = ztr.To_Local().c_str();
+  ztr = get_info(mi);
   buff = compact->buffer();
   buff->remove(0, buff->length());  /* clear buffer */
-  buff->text(str.c_str());
+  buff->text(ztr.To_Local().c_str());
 
   mi.Option(__T("Output"), __T("TEXT"));
   ztr = mi.Inform();
@@ -271,11 +239,11 @@ static void load_file(const char *file)
     }
 
     sub = elem.substr(0, elem.find_last_not_of(' ', 40) + 1);
-    replace_string("/", "\xE2\x88\x95", sub);
+    replace_string("/", "\\/", sub);
     str = root + "/" + sub + "/";
 
     sub = elem.substr(43);
-    replace_string("/", "\xE2\x88\x95", sub);
+    replace_string("/", "\\/", sub);
     str += sub;
 
     tree->add(str.c_str());
@@ -283,6 +251,29 @@ static void load_file(const char *file)
 
   tree->end();
   tree_collapse_all_cb(NULL, NULL);
+}
+
+static inline void do_nothing_cb(Fl_Widget *, void *) {
+}
+
+static void tree_expand_all_cb(Fl_Widget *, void *)
+{
+  Fl_Tree_Item *item = tree->first();
+
+  while (item != tree->last()) {
+    item = tree->next_item(item);
+    tree->open(item);
+  }
+}
+
+static void tree_collapse_all_cb(Fl_Widget *, void *)
+{
+  Fl_Tree_Item *item = tree->first();
+
+  while (item != tree->last()) {
+    item = tree->next_item(item);
+    tree->close(item);
+  }
 }
 
 static void dnd_dropped_cb(Fl_Widget *, void *)
@@ -358,11 +349,11 @@ static void view_tree_cb(Fl_Widget *, void *)
 
 static void open_file_cb(Fl_Widget *, void *)
 {
-  Fl_Native_File_Chooser *fc = new Fl_Native_File_Chooser(Fl_Native_File_Chooser::BROWSE_FILE);
-  fc->title("Select a file");
+  Fl_Native_File_Chooser fc(Fl_Native_File_Chooser::BROWSE_FILE);
+  fc.title("Select a file");
 
-  if (fc->show() == 0) {
-    load_file(fc->filename());
+  if (fc.show() == 0) {
+    load_file(fc.filename());
   }
 }
 
@@ -378,54 +369,53 @@ static void about_cb(Fl_Widget *, void *)
 
 static void copy_selection(MyTextDisplay *disp)
 {
-  int start, end;
-  char *sel;
+  int start = 0, end = 0;
 
   Fl_Text_Buffer *buff = disp->buffer();
   buff->selection_position(&start, &end);
-  sel = buff->text_range(start, end);
+  char *sel = buff->text_range(start, end);
 
   Fl::copy(sel, end - start, 1);
   free(sel);
 }
 
-static void copy_compact_selection_cb(Fl_Widget *, void *) {
+static inline void copy_compact_selection_cb(Fl_Widget *, void *) {
   copy_selection(compact);
 }
 
-static void copy_text_selection_cb(Fl_Widget *, void *) {
+static inline void copy_text_selection_cb(Fl_Widget *, void *) {
   copy_selection(text);
 }
 
-static void copy_html_selection_cb(Fl_Widget *, void *) {
+static inline void copy_html_selection_cb(Fl_Widget *, void *) {
   html->copy_selection();
 }
 
 static void copy_tree_selection_cb(Fl_Widget *, void *)
 {
   Fl_Tree_Item *item = tree->last_selected_item();
+  const char *l1, *l2, *l3;
 
-  if (item) {
-    const char *l1, *l2, *l3;
+  if (!item) {
+    return;
+  }
 
-    if (item->depth() == 3) {
-      Fl_Tree_Item *par = item->parent();
-      l1 = par->parent()->label();
-      l2 = item->parent()->label();
-      l3 = item->label();
-    } else if (item->depth() == 2 && item->has_children()) {
-      l1 = item->parent()->label();
-      l2 = item->label();
-      l3 = item->child(0)->label();
-    } else {
-      l1 = l2 = l3 = NULL;
-    }
+  if (item->depth() == 3) {
+    Fl_Tree_Item *par = item->parent();
+    l1 = par->parent()->label();
+    l2 = item->parent()->label();
+    l3 = item->label();
+  } else if (item->depth() == 2 && item->has_children()) {
+    l1 = item->parent()->label();
+    l2 = item->label();
+    l3 = item->child(0)->label();
+  } else {
+    l1 = l2 = l3 = NULL;
+  }
 
-    if (l1 && l2 && l3) {
-      std::string s = "[" + std::string(l1) + "] " + std::string(l2) + ": " + std::string(l3);
-      replace_string("\xE2\x88\x95", "/", s);
-      Fl::copy(s.c_str(), s.size(), 1);
-    }
+  if (l1 && l2 && l3) {
+    std::string s = "[" + std::string(l1) + "] " + std::string(l2) + ": " + std::string(l3);
+    Fl::copy(s.c_str(), s.size(), 1);
   }
 }
 
@@ -442,7 +432,7 @@ static void close_cb(Fl_Widget *, void *v)
 }
 
 #ifdef MEDIAINFO_DYNAMIC
-static int check_lib_loaded(void) {
+static inline int check_lib_loaded(void) {
   MEDIAINFO_TEST_INT;  /* returns 0 on failure */
   return 1;
 }
@@ -452,11 +442,12 @@ int main(int argc, char *argv[])
 {
   Fl_Group *g, *g_inside, *g_top;
   Fl_Preferences *pref = NULL;
-  Fl_Text_Buffer *compact_buff, *text_buff;
+  Fl_Text_Buffer *compact_buff = NULL, *text_buff = NULL;
   char *home, view_get[8] = {0};
   int *flags_compact, *flags_text, *flags_html, *flags_tree;
 
-  Fl_Window::default_icon(new Fl_PNG_Image(NULL, icon_png, icon_png_len));
+  Fl_PNG_Image png(NULL, icon_png, icon_png_len);
+  Fl_Window::default_icon(&png);
 
 #ifdef MEDIAINFO_DYNAMIC
   if (check_lib_loaded() == 0) {
@@ -468,10 +459,12 @@ int main(int argc, char *argv[])
 #endif
 
   if ((home = getenv("HOME")) != NULL) {
-    std::string s = std::string(home) + "/.config";
-    pref = new Fl_Preferences(s.c_str(), VENDOR, APP);
+    std::string s = home;
+    s += "/.config";
+    pref = new Fl_Preferences(s.c_str(), VENDOR, APPNAME);
+
     if (!pref->get("view", view_get, "text", sizeof(view_get) - 1)) {
-      memset(view_get, '\0', sizeof(view_get));
+      view_get[0] = 0;
     }
   }
 
@@ -494,13 +487,14 @@ int main(int argc, char *argv[])
     {0}
   };
 
-  const int i = 5;
-  flags_compact = &menu[i].flags;
-  flags_text = &menu[i + 1].flags;
-  flags_html = &menu[i + 2].flags;
-  flags_tree = &menu[i + 3].flags;
-  flags_expand = &menu[i + 4].flags;
-  flags_collapse = &menu[i + 5].flags;
+# define POS 5
+
+  flags_compact = &menu[POS].flags;
+  flags_text = &menu[POS + 1].flags;
+  flags_html = &menu[POS + 2].flags;
+  flags_tree = &menu[POS + 3].flags;
+  flags_expand = &menu[POS + 4].flags;
+  flags_collapse = &menu[POS + 5].flags;
 
   Fl_Menu_Item compact_menu[] = {
     { " Copy selection  ", 0, copy_compact_selection_cb, NULL, FL_MENU_DIVIDER },
@@ -583,7 +577,7 @@ int main(int argc, char *argv[])
   {
     MediaInfo mi;
 
-    int version = Fl::api_version();
+    const int version = Fl::api_version();
     int major = version / 10000;
     int minor = (version % 10000) / 100;
     int patch = version % 100;
@@ -614,13 +608,21 @@ int main(int argc, char *argv[])
     view_tree_cb(NULL, NULL);
   } else {
     *flags_compact = FL_MENU_RADIO|FL_MENU_VALUE;
-    //view_compact_cb(NULL, NULL);
+    /* no need to call view_compact_cb() because "compact" is already set as default */
   }
 
   if (argc > 1) {
     load_file(argv[1]);
   }
 
-  return Fl::run();
+  int rv = Fl::run();
+
+  DEL(win);
+  DEL(about_win);
+  DEL(compact_buff);
+  DEL(text_buff);
+  DEL(pref);
+
+  return rv;
 }
 

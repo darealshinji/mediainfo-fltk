@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2018-2020, djcj <djcj@gmx.de>
+ *  Copyright (c) 2018-2021, djcj <djcj@gmx.de>
  *
  *  BSD 2-Clause License
  *
@@ -43,12 +43,10 @@ using namespace MEDIAINFONAMESPACE;
 using namespace ZenLib;
 
 
-void get_info(MediaInfo &mi, Ztring &info)
+Ztring get_info(MediaInfo &mi)
 {
-  Ztring ztr;
+  Ztring ztr, info;
   int video_count, audio_count, text_count, count;
-
-  info.clear();
 
   ztr = mi.Get(Stream_General, 0, __T("CompleteName"));
   if (!ztr.empty()) {
@@ -314,5 +312,7 @@ void get_info(MediaInfo &mi, Ztring &info)
       info += __T("Title: ") + ztr + __T("\n");
     }
   }
+
+  return info;
 }
 

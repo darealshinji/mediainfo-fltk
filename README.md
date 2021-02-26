@@ -1,5 +1,5 @@
 This is a small and simple MediaInfo GUI using FLTK.
 
 To buid run `make` or `./build.sh`.
-If you prefer `libmediainfo` to be loaded dynamically, run `make DYNAMIC=1` or `./build.sh dynamic`.
+If you prefer `libmediainfo` not to be loaded dynamically, run `make DYNAMIC=0` or `./build.sh no-dynamic`.
 

@@ -1,12 +1,15 @@
 #!/bin/sh
 
-dynamic=0
+dynamic=1
 jobs=4
 pfx="fltk/build/usr"
 config="$pfx/bin/fltk-config"
 
-if [ "x$1" = "xdynamic" ]; then
-  dynamic=1
+if [ "x$1" = "xno-dynamic" ]; then
+  dynamic=0
+  echo "dlopen() libmediainfo: no"
+else
+  echo "dlopen() libmediainfo: yes"
 fi
 
 set -e
@@ -18,12 +21,13 @@ if [ "x$dynamic" != "x1" ]; then
 fi
 pkg-config --exists xft  # FLTK looks ugly without it
 
+# need to download header files
 if [ "x$dynamic" = "x1" ] && [ ! -d MediaInfoLib ]; then
   git clone --depth 1 https://github.com/MediaArea/MediaInfoLib
 fi
 
 if [ ! -d fltk ]; then
-  git clone "https://github.com/fltk/fltk"
+  git clone https://github.com/fltk/fltk
   cd fltk
   git checkout branch-1.3
   cd ..
@@ -35,7 +39,7 @@ if [ ! -d fltk/build ]; then
   cmake .. -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$PWD/usr" \
     -DOPTION_BUILD_EXAMPLES=OFF \
-    -DOPTION_OPTIM="-O3" \
+    -DOPTION_OPTIM="-O3 -Wno-shadow" \
     -DOPTION_USE_GL=OFF \
     -DOPTION_USE_SYSTEM_LIBPNG=ON \
     -DOPTION_USE_SYSTEM_ZLIB=ON \
