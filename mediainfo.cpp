@@ -111,6 +111,7 @@ int MyTextDisplay::handle(int event)
 {
   if (event == FL_PUSH && Fl::event_button() == FL_RIGHT_MOUSE) {
     _menu[0].flags = (buffer() && buffer()->selected()) ? FL_MENU_DIVIDER : FL_MENU_INACTIVE|FL_MENU_DIVIDER;
+    if (active_r() && window()) window()->cursor(FL_CURSOR_DEFAULT);
 
     const Fl_Menu_Item *m = _menu->popup(Fl::event_x(), Fl::event_y());
     if (m) {
