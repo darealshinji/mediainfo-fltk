@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2018-2021, djcj <djcj@gmx.de>
+ *  Copyright (c) 2018-2023, djcj <djcj@gmx.de>
  *
  *  The MediaInfo icon is Copyright (c) 2002-2021, MediaArea.net SARL
  *  All rights reserved.
@@ -62,23 +62,25 @@
 #include "mediainfo.hpp"
 #include "icon.h"
 
-#define VENDOR   "https://github.com/darealshinji"
-#define APPNAME  "mediainfo-fltk"
-#define DEL(x)   if (x) { delete x; }
+#define VENDOR  "https://github.com/darealshinji"
+#define APPNAME "mediainfo-fltk"
+
 
 using namespace MEDIAINFONAMESPACE;
 using namespace ZenLib;
 
-
 extern Ztring get_info(MediaInfo &mi);
 static void tree_collapse_all_cb(Fl_Widget *, void *);
 
-static Fl_Double_Window *win = NULL, *about_win = NULL;
-static MyTextDisplay *compact = NULL, *text = NULL;
+static Fl_Double_Window *win = NULL;
+static Fl_Double_Window *about_win = NULL;
+static MyTextDisplay *compact = NULL;
+static MyTextDisplay *text = NULL;
 static MyHelpView *html = NULL;
 static MyTree *tree = NULL;
 static const char *view_set = "compact";
-static int *flags_expand, *flags_collapse;
+static int *flags_expand;
+static int *flags_collapse;
 
 
 MyDndBox::MyDndBox(int X, int Y, int W, int H)
@@ -425,54 +427,42 @@ static void close_cb(Fl_Widget *, void *v)
   about_win->hide();
   win->hide();
 
-  if (v) {
-    Fl_Preferences *pref = reinterpret_cast<Fl_Preferences *>(v);
-    pref->set("view", view_set);
-    pref->flush();
+  const char *path = reinterpret_cast<const char *>(v);
+
+  if (path && *path) {
+    Fl_Preferences pref(path, VENDOR, APPNAME);
+    pref.set("view", view_set);
+    pref.flush();
   }
 }
 
-#ifdef MEDIAINFO_DYNAMIC
-static inline int check_lib_loaded(void) {
-  MEDIAINFO_TEST_INT;  /* returns 0 on failure */
-  return 1;
-}
-#endif
-
-int main(int argc, char *argv[])
+static int mediainfo_fltk(const char *file)
 {
-  Fl_Group *g, *g_inside, *g_top;
-  Fl_Preferences *pref = NULL;
-  Fl_Text_Buffer *compact_buff = NULL, *text_buff = NULL;
+  std::string conf;
   char *home, view_get[8] = {0};
   int *flags_compact, *flags_text, *flags_html, *flags_tree;
 
-  Fl_PNG_Image png(NULL, icon_png, icon_png_len);
-  Fl_Window::default_icon(&png);
+  /* http://fltk.org/str.php?L3465+P0+S-2+C0+I0+E0+V%25+QFL_SCREEN */
+  Fl::set_font(FL_SCREEN, " mono");
 
-#ifdef MEDIAINFO_DYNAMIC
-  if (check_lib_loaded() == 0) {
-    fl_message_title("Error");
-    fl_alert("%s", "Unable to load " MEDIAINFODLL_NAME);
-    Fl::run();
-    return 1;
-  }
-#endif
-
+  /* load preferences */
   if ((home = getenv("HOME")) != NULL) {
-    std::string s = home;
-    s += "/.config";
-    pref = new Fl_Preferences(s.c_str(), VENDOR, APPNAME);
+    conf = home;
+    conf += "/.config";
 
-    if (!pref->get("view", view_get, "text", sizeof(view_get) - 1)) {
+    Fl_Preferences pref(conf.c_str(), VENDOR, APPNAME);
+
+    if (!pref.get("view", view_get, "text", sizeof(view_get) - 1)) {
       view_get[0] = 0;
     }
   }
 
+  /* menus */
+
   Fl_Menu_Item menu[] = {
     { "File", 0, NULL, NULL, FL_SUBMENU },
       { " Open file  ", 0, open_file_cb, NULL, FL_MENU_DIVIDER },
-      { " Close window  ", 0, close_cb, pref },
+      { " Close window  ", 0, close_cb, (void *)conf.c_str() },
       {0},
     { "View", 0, NULL, NULL, FL_SUBMENU },
       { " Compact  ", 0, view_compact_cb, NULL, FL_MENU_RADIO },
@@ -488,14 +478,13 @@ int main(int argc, char *argv[])
     {0}
   };
 
-# define POS 5
-
-  flags_compact = &menu[POS].flags;
-  flags_text = &menu[POS + 1].flags;
-  flags_html = &menu[POS + 2].flags;
-  flags_tree = &menu[POS + 3].flags;
-  flags_expand = &menu[POS + 4].flags;
-  flags_collapse = &menu[POS + 5].flags;
+  const short pos = 5;
+  flags_compact  = &menu[pos+0].flags;
+  flags_text     = &menu[pos+1].flags;
+  flags_html     = &menu[pos+2].flags;
+  flags_tree     = &menu[pos+3].flags;
+  flags_expand   = &menu[pos+4].flags;
+  flags_collapse = &menu[pos+5].flags;
 
   Fl_Menu_Item compact_menu[] = {
     { " Copy selection  ", 0, copy_compact_selection_cb, NULL, FL_MENU_DIVIDER },
@@ -523,59 +512,60 @@ int main(int argc, char *argv[])
     {0}
   };
 
-  /* http://fltk.org/str.php?L3465+P0+S-2+C0+I0+E0+V%25+QFL_SCREEN */
-  Fl::set_font(FL_SCREEN, " mono");
+  /* main window */
+  Fl_Double_Window xwin(800, 600, "MediaInfo");
+  win = &xwin;
+  xwin.callback(close_cb, (void *)conf.c_str());
 
-  win = new Fl_Double_Window(800, 600, "MediaInfo");
-  win->callback(close_cb, pref);
-  {
-    g = new Fl_Group(0, 0, 800, 600);
-    {
-      g_top = new Fl_Group(10, 0, 780, 30);
-      {
-        Fl_Menu_Bar *o = new Fl_Menu_Bar(10, 0, 200, 30);
-        o->box(FL_NO_BOX);
-        o->menu(menu);
-      }
-      g_top->end();
-      g_top->resizable(NULL);
+    Fl_Group g(0, 0, 800, 600);
 
-      g_inside = new Fl_Group(10, 30, 780, 560);
-      {
-        compact = new MyTextDisplay(10, 30, 780, 560);
-        compact_buff = new Fl_Text_Buffer();
-        compact->buffer(compact_buff);
-        compact->menu(compact_menu);
+      Fl_Group g_top(10, 0, 780, 30);
+        Fl_Menu_Bar mbar(10, 0, 200, 30);
+        mbar.box(FL_NO_BOX);
+        mbar.menu(menu);
+      g_top.end();
+      g_top.resizable(NULL);
 
-        text = new MyTextDisplay(10, 30, 780, 560);
-        text_buff = new Fl_Text_Buffer();
-        text->buffer(text_buff);
-        text->menu(text_menu);
-        text->hide();
+      Fl_Group g_inside(10, 30, 780, 560);
 
-        html = new MyHelpView(10, 30, 780, 560);
-        html->menu(html_menu);
-        html->hide();
+        Fl_Text_Buffer compact_buff;
+        MyTextDisplay xcompact(10, 30, 780, 560);
+        xcompact.buffer(&compact_buff);
+        xcompact.menu(compact_menu);
+        compact = &xcompact;
 
-        tree = new MyTree(10, 30, 780, 560);
-        tree->menu(tree_menu);
-        tree->hide();
-      }
-      g_inside->end();
+        Fl_Text_Buffer text_buff;
+        MyTextDisplay xtext(10, 30, 780, 560);
+        xtext.buffer(&text_buff);
+        xtext.menu(text_menu);
+        xtext.hide();
+        text = &xtext;
 
-      { MyDndBox *o = new MyDndBox(10, 30, 780, 560);
-       o->callback(dnd_dropped_cb); }
-    }
-    g->end();
-    g->resizable(g_inside);
-  }
-  win->end();
-  win->resizable(g);
-  win->position((Fl::w() - 800) / 2, (Fl::h() - 600) / 2); /* center */
-  win->show();
+        MyHelpView xhtml(10, 30, 780, 560);
+        xhtml.menu(html_menu);
+        xhtml.hide();
+        html = &xhtml;
 
-  about_win = new Fl_Double_Window(260, 130, "About");
-  {
+        MyTree xtree(10, 30, 780, 560);
+        xtree.menu(tree_menu);
+        xtree.hide();
+        tree = &xtree;
+
+      g_inside.end();
+
+      MyDndBox dnd(10, 30, 780, 560);
+      dnd.callback(dnd_dropped_cb);
+
+    g.end();
+    g.resizable(g_inside);
+
+  xwin.end();
+  xwin.resizable(g);
+  xwin.position((Fl::w() - 800) / 2, (Fl::h() - 600) / 2); /* center */
+  xwin.show();
+
+  /* "about" window */
+  Fl_Double_Window xabout_win(260, 130, "About");
     MediaInfo mi;
 
     const int version = Fl::api_version();
@@ -591,12 +581,14 @@ int main(int argc, char *argv[])
       __T("<br><a href=\"https://www.fltk.org/\">https://www.fltk.org/</a></p>"
       "</center></body></html>");
 
-    { Fl_Help_View *o = new Fl_Help_View(0, 0, 260, 130);
-     o->box(FL_FLAT_BOX);
-     o->value(ztr.To_Local().c_str()); }
-  }
-  about_win->end();
+    Fl_Help_View hv(0, 0, 260, 130);
+    hv.box(FL_FLAT_BOX);
+    hv.value(ztr.To_Local().c_str());
 
+  xabout_win.end();
+  about_win = &xabout_win;
+
+  /* set view type */
   if (strcasecmp(view_get, "text") == 0) {
     *flags_text = FL_MENU_RADIO|FL_MENU_VALUE;
     view_text_cb(NULL, NULL);
@@ -612,18 +604,32 @@ int main(int argc, char *argv[])
     /* no need to call view_compact_cb() because "compact" is already set as default */
   }
 
-  if (argc > 1) {
-    load_file(argv[1]);
+  /* load file */
+  if (file && *file) {
+    load_file(file);
   }
 
-  int rv = Fl::run();
+  return Fl::run();
+}
 
-  DEL(win);
-  DEL(about_win);
-  DEL(compact_buff);
-  DEL(text_buff);
-  DEL(pref);
+int main(int argc, char *argv[])
+{
+  /* set icon */
+  Fl_PNG_Image png(NULL, icon_png, icon_png_len);
+  Fl_Window::default_icon(&png);
 
-  return rv;
+  /* load MediaInfo library */
+#ifdef MEDIAINFO_DYNAMIC
+  auto lambda_check = []() -> int { MEDIAINFO_TEST_INT; return 1; };
+
+  if (lambda_check() == 0) {
+    fl_message_title("Error");
+    fl_alert("%s", "Unable to load " MEDIAINFODLL_NAME);
+    Fl::run();
+    return 1;
+  }
+#endif
+
+  return mediainfo_fltk(argc > 1 ? argv[1] : NULL);
 }
 
