@@ -30,19 +30,12 @@
 
 #include <FL/Fl.H>
 #include <FL/Fl_Button.H>
-#include <FL/Fl_Box.H>
 #include <FL/Fl_Group.H>
-//#include <FL/Fl_Help_View.H>
 #include <FL/Fl_Menu_Bar.H>
 #include <FL/Fl_Native_File_Chooser.H>
 #include <FL/Fl_PNG_Image.H>
 #include <FL/Fl_Preferences.H>
-#include <FL/Fl_Text_Display.H>
-#include <FL/Fl_Tree.H>
 #include <FL/Fl_Double_Window.H>
-
-/* modified FLTK 1.3 header */
-#include "Fl_Help_View.H"
 
 #include <iostream>
 #include <string>
@@ -59,7 +52,7 @@
 #endif
 #include <ZenLib/Ztring.h>
 
-#include "mediainfo.hpp"
+#include "helper_classes.hpp"
 #include "icon.h"
 
 #define VENDOR  "https://github.com/darealshinji"
@@ -82,88 +75,6 @@ static const char *view_set = "compact";
 static int *flags_expand;
 static int *flags_collapse;
 
-
-MyDndBox::MyDndBox(int X, int Y, int W, int H)
-  : Fl_Box(X, Y, W, H)
-{ }
-
-int MyDndBox::handle(int event)
-{
-  switch (event) {
-    case FL_DND_ENTER:
-    case FL_DND_DRAG:
-    case FL_DND_RELEASE:
-      return 1;
-    case FL_PASTE:
-      do_callback();
-      return 1;
-  }
-  return Fl_Box::handle(event);
-}
-
-MyTextDisplay::MyTextDisplay(int X, int Y, int W, int H)
-  : Fl_Text_Display(X, Y, W, H)
-{
-  menu(NULL);
-  textfont(FL_SCREEN);
-  wrap_mode(Fl_Text_Display::WRAP_AT_BOUNDS, 1);
-}
-
-int MyTextDisplay::handle(int event)
-{
-  if (event == FL_PUSH && Fl::event_button() == FL_RIGHT_MOUSE) {
-    _menu[0].flags = (buffer() && buffer()->selected()) ? FL_MENU_DIVIDER : FL_MENU_INACTIVE|FL_MENU_DIVIDER;
-    if (active_r() && window()) window()->cursor(FL_CURSOR_DEFAULT);
-
-    const Fl_Menu_Item *m = _menu->popup(Fl::event_x(), Fl::event_y());
-    if (m) {
-      m->do_callback(NULL);
-      return 1;
-    }
-  }
-  return Fl_Text_Display::handle(event);
-}
-
-MyHelpView::MyHelpView(int X, int Y, int W, int H)
-  : Fl_Help_View(X, Y, W, H)
-{
-  menu(NULL);
-}
-
-int MyHelpView::handle(int event)
-{
-  if (event == FL_PUSH && Fl::event_button() == FL_RIGHT_MOUSE) {
-    _menu[0].flags = (is_selected() && has_current_view() == this) ? FL_MENU_DIVIDER : FL_MENU_INACTIVE|FL_MENU_DIVIDER;
-
-    const Fl_Menu_Item *m = _menu->popup(Fl::event_x(), Fl::event_y());
-    if (m) {
-      m->do_callback(NULL);
-      return 1;
-    }
-  }
-  return Fl_Help_View::handle(event);
-}
-
-MyTree::MyTree(int X, int Y, int W, int H)
-  : Fl_Tree(X, Y, W, H)
-{
-  menu(NULL);
-  showroot(0);
-}
-
-int MyTree::handle(int event)
-{
-  if (event == FL_PUSH && Fl::event_button() == FL_RIGHT_MOUSE) {
-    _menu[0].flags = last_selected_item() ? FL_MENU_DIVIDER : FL_MENU_INACTIVE|FL_MENU_DIVIDER;
-
-    const Fl_Menu_Item *m = _menu->popup(Fl::event_x(), Fl::event_y());
-    if (m) {
-      m->do_callback(NULL);
-      return 1;
-    }
-  }
-  return Fl_Tree::handle(event);
-}
 
 static void replace_string(const std::string &from, const std::string &to, std::string &s) {
   for (size_t pos = 0; (pos = s.find(from, pos)) != std::string::npos; pos += to.size()) {
@@ -459,21 +370,23 @@ static int mediainfo_fltk(const char *file)
 
   /* menus */
 
+#define ENT(x)  " " x "  "  /* 1 leading space + 2 trailing spaces */
+
   Fl_Menu_Item menu[] = {
     { "File", 0, NULL, NULL, FL_SUBMENU },
-      { " Open file  ", 0, open_file_cb, NULL, FL_MENU_DIVIDER },
-      { " Close window  ", 0, close_cb, (void *)conf.c_str() },
+      { ENT("Open file"),    0, open_file_cb,         NULL, FL_MENU_DIVIDER },
+      { ENT("Close window"), 0, close_cb,             (void *)conf.c_str() },
       {0},
     { "View", 0, NULL, NULL, FL_SUBMENU },
-      { " Compact  ", 0, view_compact_cb, NULL, FL_MENU_RADIO },
-      { " Text  ", 0, view_text_cb, NULL, FL_MENU_RADIO },
-      { " HTML  ", 0, view_html_cb, NULL, FL_MENU_RADIO },
-      { " Tree  ", 0, view_tree_cb, NULL, FL_MENU_RADIO|FL_MENU_DIVIDER },
-      { " Expand all  ", 0, tree_expand_all_cb, NULL, FL_MENU_INACTIVE },
-      { " Collapse all  ", 0, tree_collapse_all_cb, NULL, FL_MENU_INACTIVE },
+      { ENT("Compact"),      0, view_compact_cb,      NULL, FL_MENU_RADIO },
+      { ENT("Text"),         0, view_text_cb,         NULL, FL_MENU_RADIO },
+      { ENT("HTML"),         0, view_html_cb,         NULL, FL_MENU_RADIO },
+      { ENT("Tree"),         0, view_tree_cb,         NULL, FL_MENU_RADIO|FL_MENU_DIVIDER },
+      { ENT("Expand all"),   0, tree_expand_all_cb,   NULL, FL_MENU_INACTIVE },
+      { ENT("Collapse all"), 0, tree_collapse_all_cb, NULL, FL_MENU_INACTIVE },
       {0},
     { "Help", 0, NULL, NULL, FL_SUBMENU },
-      { " About  ", 0, about_cb },
+      { ENT("About"),        0, about_cb },
       {0},
     {0}
   };
@@ -487,28 +400,28 @@ static int mediainfo_fltk(const char *file)
   flags_collapse = &menu[pos+5].flags;
 
   Fl_Menu_Item compact_menu[] = {
-    { " Copy selection  ", 0, copy_compact_selection_cb, NULL, FL_MENU_DIVIDER },
-    { " Dismiss  ", 0, do_nothing_cb },
+    { ENT("Copy selection"), 0, copy_compact_selection_cb, NULL, FL_MENU_DIVIDER },
+    { ENT("Dismiss"),        0, do_nothing_cb },
     {0}
   };
 
   Fl_Menu_Item text_menu[] = {
-    { " Copy selection  ", 0, copy_text_selection_cb, NULL, FL_MENU_DIVIDER },
-    { " Dismiss  ", 0, do_nothing_cb },
+    { ENT("Copy selection"), 0, copy_text_selection_cb, NULL, FL_MENU_DIVIDER },
+    { ENT("Dismiss"),        0, do_nothing_cb },
     {0}
   };
 
   Fl_Menu_Item html_menu[] = {
-    { " Copy selection  ", 0, copy_html_selection_cb, NULL, FL_MENU_DIVIDER },
-    { " Dismiss  ", 0, do_nothing_cb },
+    { ENT("Copy selection"), 0, copy_html_selection_cb, NULL, FL_MENU_DIVIDER },
+    { ENT("Dismiss"),        0, do_nothing_cb },
     {0}
   };
 
   Fl_Menu_Item tree_menu[] = {
-    { " Copy selection  ", 0, copy_tree_selection_cb },
-    { " Expand all  ", 0, tree_expand_all_cb },
-    { " Collapse all  ", 0, tree_collapse_all_cb, NULL, FL_MENU_DIVIDER },
-    { " Dismiss  ", 0, do_nothing_cb },
+    { ENT("Copy selection"), 0, copy_tree_selection_cb },
+    { ENT("Expand all"),     0, tree_expand_all_cb },
+    { ENT("Collapse all"),   0, tree_collapse_all_cb, NULL, FL_MENU_DIVIDER },
+    { ENT("Dismiss"),        0, do_nothing_cb },
     {0}
   };
 
@@ -565,7 +478,7 @@ static int mediainfo_fltk(const char *file)
   xwin.show();
 
   /* "about" window */
-  Fl_Double_Window xabout_win(260, 130, "About");
+  Fl_Double_Window xabout_win(270, 140, "About");
     MediaInfo mi;
 
     const int version = Fl::api_version();
@@ -575,13 +488,21 @@ static int mediainfo_fltk(const char *file)
 
     Ztring url = mi.Option(__T("Info_Url"));
     Ztring ztr =
-      __T("<html><body bgcolor=silver><center><p></p>"
-      "<p>") + mi.Option(__T("Info_Version")) + __T("<br><a href=\"") + url + __T("\">") + url + __T("</a></p>"
-      "<p>FLTK ") + Ztring::ToZtring(major) + __T(".") + Ztring::ToZtring(minor) + __T(".") + Ztring::ToZtring(patch) +
-      __T("<br><a href=\"https://www.fltk.org/\">https://www.fltk.org/</a></p>"
+      __T("<html><body bgcolor=silver><center>"
+
+        /* mediainfo-fltk */
+        "<p>Source code on <a href=\"https://github.com/darealshinji/mediainfo-fltk\">Github</a></p>"
+
+        /* libmediainfo */
+        "<p>") + mi.Option(__T("Info_Version")) + __T("<br><a href=\"") + url + __T("\">") + url + __T("</a></p>"
+        "<p>FLTK ") + Ztring::ToZtring(major) + __T(".") + Ztring::ToZtring(minor) + __T(".") + Ztring::ToZtring(patch) +
+
+        /* FLTK */
+        __T("<br><a href=\"https://www.fltk.org/\">https://www.fltk.org/</a></p>"
+
       "</center></body></html>");
 
-    Fl_Help_View hv(0, 0, 260, 130);
+    Fl_Help_View hv(0, 0, xabout_win.w(), xabout_win.h());
     hv.box(FL_FLAT_BOX);
     hv.value(ztr.To_Local().c_str());
 

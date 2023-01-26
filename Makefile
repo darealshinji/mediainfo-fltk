@@ -9,7 +9,7 @@ all:
 	./build.sh $(dynamic_option)
 
 clean:
-	rm -f icon.h compact.o mediainfo.o mediainfo-fltk
+	rm -f icon.h compact.o helper_classes.o mediainfo.o mediainfo-fltk
 
 distclean: clean
 	rm -rf fltk/build

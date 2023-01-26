@@ -24,6 +24,15 @@
  *  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <FL/Fl.H>
+#include <FL/Fl_Box.H>
+#include <FL/Fl_Text_Display.H>
+#include <FL/Fl_Tree.H>
+#include <FL/Fl_Menu_Item.H>
+
+/* modified FLTK 1.3 header */
+#include "Fl_Help_View.H"
+
 
 class MyDndBox : public Fl_Box
 {
