@@ -29,21 +29,10 @@
 #include <string>
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef MEDIAINFO_DYNAMIC
-# include "MediaInfoDLL/MediaInfoDLL.h"
-# define MEDIAINFONAMESPACE MediaInfoDLL;
-#else
-# include "MediaInfo/MediaInfo.h"
-# define MEDIAINFONAMESPACE MediaInfoLib;
-#endif
-#include <ZenLib/Ztring.h>
-
-using namespace MEDIAINFONAMESPACE;
-using namespace ZenLib;
+#include "mediainfo.hpp"
 
 
-Ztring get_info(MediaInfo &mi)
+Ztring mediainfo_fltk::get_info(MediaInfo &mi)
 {
   Ztring ztr, info;
   int video_count, audio_count, text_count, count;

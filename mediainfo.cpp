@@ -27,7 +27,6 @@
  *  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include <FL/Fl.H>
 #include <FL/Fl_Button.H>
 #include <FL/Fl_Group.H>
@@ -36,53 +35,36 @@
 #include <FL/Fl_PNG_Image.H>
 #include <FL/Fl_Preferences.H>
 #include <FL/Fl_Double_Window.H>
-
 #include <iostream>
 #include <string>
 #include <vector>
 #include <strings.h>
 #include <string.h>
 
-#ifdef MEDIAINFO_DYNAMIC
-# include "MediaInfoDLL/MediaInfoDLL.h"
-# define MEDIAINFONAMESPACE MediaInfoDLL;
-#else
-# include "MediaInfo/MediaInfo.h"
-# define MEDIAINFONAMESPACE MediaInfoLib;
-#endif
-#include <ZenLib/Ztring.h>
-
-#include "helper_classes.hpp"
+#include "mediainfo.hpp"
 #include "icon.h"
 
 #define VENDOR  "https://github.com/darealshinji"
 #define APPNAME "mediainfo-fltk"
 
 
-using namespace MEDIAINFONAMESPACE;
-using namespace ZenLib;
+Fl_Double_Window *mediainfo_fltk::win = NULL;
+Fl_Double_Window *mediainfo_fltk::about_win = NULL;
+MyTextDisplay *mediainfo_fltk::compact = NULL;
+MyTextDisplay *mediainfo_fltk::text = NULL;
+MyHelpView *mediainfo_fltk::html = NULL;
+MyTree *mediainfo_fltk::tree = NULL;
+const char *mediainfo_fltk::view_set = "compact";
+int *mediainfo_fltk::flags_expand = NULL;
+int *mediainfo_fltk::flags_collapse = NULL;
 
-extern Ztring get_info(MediaInfo &mi);
-static void tree_collapse_all_cb(Fl_Widget *, void *);
-
-static Fl_Double_Window *win = NULL;
-static Fl_Double_Window *about_win = NULL;
-static MyTextDisplay *compact = NULL;
-static MyTextDisplay *text = NULL;
-static MyHelpView *html = NULL;
-static MyTree *tree = NULL;
-static const char *view_set = "compact";
-static int *flags_expand;
-static int *flags_collapse;
-
-
-static void replace_string(const std::string &from, const std::string &to, std::string &s) {
+void mediainfo_fltk::replace_string(const std::string &from, const std::string &to, std::string &s) {
   for (size_t pos = 0; (pos = s.find(from, pos)) != std::string::npos; pos += to.size()) {
     s.replace(pos, from.size(), to);
   }
 }
 
-static void load_file(const char *file)
+void mediainfo_fltk::load_file(const char *file)
 {
   MediaInfo mi;
   Ztring ztr;
@@ -167,10 +149,7 @@ static void load_file(const char *file)
   tree_collapse_all_cb(NULL, NULL);
 }
 
-static inline void do_nothing_cb(Fl_Widget *, void *) {
-}
-
-static void tree_expand_all_cb(Fl_Widget *, void *)
+void mediainfo_fltk::tree_expand_all_cb(Fl_Widget *, void *)
 {
   Fl_Tree_Item *item = tree->first();
 
@@ -180,7 +159,7 @@ static void tree_expand_all_cb(Fl_Widget *, void *)
   }
 }
 
-static void tree_collapse_all_cb(Fl_Widget *, void *)
+void mediainfo_fltk::tree_collapse_all_cb(Fl_Widget *, void *)
 {
   Fl_Tree_Item *item = tree->first();
 
@@ -190,7 +169,7 @@ static void tree_collapse_all_cb(Fl_Widget *, void *)
   }
 }
 
-static void dnd_dropped_cb(Fl_Widget *, void *)
+void mediainfo_fltk::dnd_dropped_cb(Fl_Widget *, void *)
 {
   char *copy, *p;
   const char *item = Fl::event_text();
@@ -212,7 +191,7 @@ static void dnd_dropped_cb(Fl_Widget *, void *)
   free(copy);
 }
 
-static void view_compact_cb(Fl_Widget *, void *)
+void mediainfo_fltk::view_compact_cb(Fl_Widget *, void *)
 {
   text->hide();
   html->hide();
@@ -224,7 +203,7 @@ static void view_compact_cb(Fl_Widget *, void *)
   compact->scroll(0, 0);
 }
 
-static void view_text_cb(Fl_Widget *, void *)
+void mediainfo_fltk::view_text_cb(Fl_Widget *, void *)
 {
   compact->hide();
   html->hide();
@@ -236,7 +215,7 @@ static void view_text_cb(Fl_Widget *, void *)
   text->scroll(0, 0);
 }
 
-static void view_html_cb(Fl_Widget *, void *)
+void mediainfo_fltk::view_html_cb(Fl_Widget *, void *)
 {
   compact->hide();
   text->hide();
@@ -248,7 +227,7 @@ static void view_html_cb(Fl_Widget *, void *)
   html->topline(0);
 }
 
-static void view_tree_cb(Fl_Widget *, void *)
+void mediainfo_fltk::view_tree_cb(Fl_Widget *, void *)
 {
   compact->hide();
   text->hide();
@@ -261,7 +240,7 @@ static void view_tree_cb(Fl_Widget *, void *)
   tree->vposition(0);
 }
 
-static void open_file_cb(Fl_Widget *, void *)
+void mediainfo_fltk::open_file_cb(Fl_Widget *, void *)
 {
   Fl_Native_File_Chooser fc(Fl_Native_File_Chooser::BROWSE_FILE);
   fc.title("Select a file");
@@ -271,7 +250,7 @@ static void open_file_cb(Fl_Widget *, void *)
   }
 }
 
-static void about_cb(Fl_Widget *, void *)
+void mediainfo_fltk::about_cb(Fl_Widget *, void *)
 {
   int x = win->x() + win->w()/2 - about_win->w()/2;
   int y = win->y() + win->h()/2 - about_win->h()/2;
@@ -281,7 +260,7 @@ static void about_cb(Fl_Widget *, void *)
   about_win->take_focus();
 }
 
-static void copy_selection(MyTextDisplay *disp)
+void mediainfo_fltk::copy_selection(MyTextDisplay *disp)
 {
   int start = 0, end = 0;
 
@@ -293,19 +272,7 @@ static void copy_selection(MyTextDisplay *disp)
   free(sel);
 }
 
-static inline void copy_compact_selection_cb(Fl_Widget *, void *) {
-  copy_selection(compact);
-}
-
-static inline void copy_text_selection_cb(Fl_Widget *, void *) {
-  copy_selection(text);
-}
-
-static inline void copy_html_selection_cb(Fl_Widget *, void *) {
-  html->copy_selection();
-}
-
-static void copy_tree_selection_cb(Fl_Widget *, void *)
+void mediainfo_fltk::copy_tree_selection_cb(Fl_Widget *, void *)
 {
   Fl_Tree_Item *item = tree->last_selected_item();
   const char *l1, *l2, *l3;
@@ -333,7 +300,7 @@ static void copy_tree_selection_cb(Fl_Widget *, void *)
   }
 }
 
-static void close_cb(Fl_Widget *, void *v)
+void mediainfo_fltk::close_cb(Fl_Widget *, void *v)
 {
   about_win->hide();
   win->hide();
@@ -347,11 +314,26 @@ static void close_cb(Fl_Widget *, void *v)
   }
 }
 
-static int mediainfo_fltk(const char *file)
+int mediainfo_fltk::launch(const char *file)
 {
-  std::string conf;
+  std::string conf = "";
   char *home, view_get[8] = {0};
   int *flags_compact, *flags_text, *flags_html, *flags_tree;
+
+  /* set icon */
+  Fl_PNG_Image png(NULL, icon_png, icon_png_len);
+  Fl_Window::default_icon(&png);
+
+  /* load MediaInfo library */
+#ifdef MEDIAINFO_DYNAMIC
+  auto lambda_check = []() -> int { MEDIAINFO_TEST_INT; return 1; };
+
+  if (lambda_check() == 0) {
+    fl_message_title("Error");
+    fl_alert("%s", "Unable to load " MEDIAINFODLL_NAME);
+    return 1;
+  }
+#endif
 
   /* http://fltk.org/str.php?L3465+P0+S-2+C0+I0+E0+V%25+QFL_SCREEN */
   Fl::set_font(FL_SCREEN, " mono");
@@ -535,22 +517,6 @@ static int mediainfo_fltk(const char *file)
 
 int main(int argc, char *argv[])
 {
-  /* set icon */
-  Fl_PNG_Image png(NULL, icon_png, icon_png_len);
-  Fl_Window::default_icon(&png);
-
-  /* load MediaInfo library */
-#ifdef MEDIAINFO_DYNAMIC
-  auto lambda_check = []() -> int { MEDIAINFO_TEST_INT; return 1; };
-
-  if (lambda_check() == 0) {
-    fl_message_title("Error");
-    fl_alert("%s", "Unable to load " MEDIAINFODLL_NAME);
-    Fl::run();
-    return 1;
-  }
-#endif
-
-  return mediainfo_fltk(argc > 1 ? argv[1] : NULL);
+  return mediainfo_fltk::launch(argc > 1 ? argv[1] : NULL);
 }
 

@@ -62,9 +62,10 @@ else
 fi
 
 xxd -i icon.png > icon.h
+sed -i 's|^unsigned|static const unsigned|g' icon.h
 g++ $CXXFLAGS -I"$pfx/include/FL" $($config --use-images --cflags) -c mediainfo.cpp
 g++ $CXXFLAGS -I"$pfx/include/FL" $($config --cflags) -c helper_classes.cpp
-g++ $CXXFLAGS -c compact.cpp
+g++ $CXXFLAGS -I"$pfx/include/FL" $($config --cflags) -c compact.cpp
 g++ -s -o mediainfo-fltk *.o $($config --use-images --ldflags) $LIBS
 
 
