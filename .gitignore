@@ -1,5 +1,4 @@
-/MediaInfoLib/
 /fltk/
-/mediainfo-fltk
-/icon.h
+/simple-mediainfo-gui
+/version.h
 *.o
