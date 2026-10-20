@@ -30,7 +30,6 @@
 #include <FL/Fl_Double_Window.H>
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Help_View.H>
-#include <FL/Fl_Native_File_Chooser.H>
 #include <FL/Fl_Text_Buffer.H>
 #include <FL/Fl_Text_Display.H>
 #include <FL/Fl_Tree.H>
@@ -40,17 +39,21 @@
 #include <iostream>
 #include <string>
 
+#include "fnfc.hpp"
 #include "dnd.hpp"
 #include "mediainfo.hpp"
 
 
 /* generate callback function and set callback */
-#define METHODCB(WIDGET, METHOD) \
+#define MAKE_CALLBACK(NAME) \
+    static auto NAME##_cb = [] (Fl_Widget *, void *p) { \
+        reinterpret_cast<decltype(this)>(p)->do_##NAME(); \
+    }
+
+#define METHODCB(WIDGET, NAME) \
     do { \
-        static auto callback_function = [] (Fl_Widget *, void *p) { \
-            reinterpret_cast<decltype(this)>(p)->METHOD(); \
-        }; \
-        WIDGET->callback(callback_function, this); \
+        MAKE_CALLBACK(NAME); \
+        WIDGET->callback(NAME##_cb, this); \
     } while (0)
 
 
@@ -69,37 +72,10 @@ enum {
 };
 
 
-static const char *file_chooser_pick(Fl_Native_File_Chooser &fnfc)
-{
-    enum {
-        FNFC_PICKED =  0,
-        FNFC_CANCEL =  1,
-        FNFC_ERROR  = -1
-    };
-
-    switch (fnfc.show())
-    {
-    case FNFC_PICKED:
-        return fnfc.filename();
-    case FNFC_ERROR:
-        fl_message_title("Error");
-        fl_alert("%s", fnfc.errmsg());
-        break;
-    case FNFC_CANCEL:
-    default:
-        break;
-    }
-
-    return NULL;
-}
-
-
 void MIGui::do_open_file()
 {
-    Fl_Native_File_Chooser fnfc(Fl_Native_File_Chooser::BROWSE_FILE);
-    fnfc.title("Select a file");
-
-    const char *file = file_chooser_pick(fnfc);
+    FNFC fc(FNFC::BROWSE_FILE, "Select a file");
+    const char *file = fc.select();
 
     if (file && *file) {
         m_file = file;
@@ -111,46 +87,47 @@ void MIGui::do_open_file()
 void MIGui::do_save_file()
 {
     std::ofstream ofs;
-    std::string filter;
-    const char *preset;
+    const char *filter, *preset;
 
     int val = m_choice->value();
+
+#define FLTR(DESC, EXT) \
+    DESC "\t" EXT "\n" \
+    "All Files\t*"
 
     switch (val)
     {
     case V_XML:
     case V_MAXML:
     case V_MPEG7:
-        filter = "XML\t*.xml";
+        filter = FLTR("XML", "*.xml");
         preset = "info.xml";
         break;
     case V_HTML:
-        filter = "HTML\t*.html,*.htm";
+        filter = FLTR("HTML", "*.html,*.htm");
         preset = "info.html";
         break;
     case V_JSON:
-        filter = "JSON\t*.json";
+        filter = FLTR("JSON", "*.json");
         preset = "info.json";
         break;
     case V_CSV:
-        filter = "CSV\t*.csv";
+        filter = FLTR("CSV", "*.csv");
         preset = "info.csv";
         break;
     default:
-        filter = "Plain Text\t*.txt";
+        filter = FLTR("Plain Text", "*.txt");
         preset = "info.txt";
         break;
     }
 
-    filter += "\nAll Files\t*";
+    /* select output file path */
+    FNFC fc(FNFC::BROWSE_SAVE_FILE, "Save as");
+    fc.options(FNFC::SAVEAS_CONFIRM | FNFC::NEW_FOLDER | FNFC::USE_FILTER_EXT);
+    fc.filter(filter);
+    fc.preset_file(preset);
 
-    /* select output path */
-    Fl_Native_File_Chooser fnfc(Fl_Native_File_Chooser::BROWSE_SAVE_FILE);
-    fnfc.title("Save file as");
-    fnfc.filter(filter.c_str());
-    fnfc.preset_file(preset);
-
-    const char *file = file_chooser_pick(fnfc);
+    const char *file = fc.select();
 
     if (!file || !*file) {
         return;
@@ -208,9 +185,9 @@ void MIGui::do_dnd()
 
 void MIGui::do_set_view()
 {
-    if (!m_file.empty()) {
-        get_file_info();
-    }
+    MediaInfo mi;
+    std::string buf;
+    const char *output = "Text";
 
     if (m_choice->value() == V_HTML) {
         m_text_disp->hide();
@@ -219,22 +196,12 @@ void MIGui::do_set_view()
         m_html->hide();
         m_text_disp->show();
     }
-}
 
+    /* get file info if m_file is not empty */
+    if (m_file.empty()) {
+        return;
+    }
 
-void MIGui::do_quit()
-{
-    Fl::hide_all_windows();
-}
-
-
-void MIGui::get_file_info()
-{
-    MediaInfo mi;
-    std::string buf;
-    const char *output = "Text";
-
-    /* open file */
     if (!mi.Open(m_file)) {
         fl_message_title("Error");
         fl_alert("Failed to open file: %s", m_file.c_str());
@@ -273,12 +240,14 @@ void MIGui::get_file_info()
     case V_BRIEF:
     default:
         buf = get_brief_data(mi);
+        m_html->value("");
         m_text_buff->replace(0, m_text_buff->length(), buf.c_str());
         return;
     }
 
     mi.Option("Output", output);
     buf = mi.Inform();
+    m_html->value("");
     m_text_buff->replace(0, m_text_buff->length(), buf.c_str());
 }
 
@@ -289,10 +258,8 @@ void MIGui::init_main_window()
     const int bt_h = 28;
     int x, y, w, h;
 
-    /* callback function for m_choice entries */
-    static auto set_view_cb = [] (Fl_Widget *, void *p) {
-        reinterpret_cast<decltype(this)>(p)->do_set_view();
-    };
+    MAKE_CALLBACK(set_view);
+    MAKE_CALLBACK(dnd);
 
     /* initialize ALL menu entries */
     const char *menu[V_LAST];
@@ -310,7 +277,8 @@ void MIGui::init_main_window()
     /* main window */
     w = 640;
     h = 480;
-    m_win = new Fl_Double_Window(w, h, "Simple MediaInfo GUI");
+    m_win = new dnd_window(w, h, "Simple MediaInfo GUI");
+    m_win->dnd(dnd_cb, this);
 
     if (MediaInfoDLL_IsLoaded()) {
         /* append MediaInfo version to label */
@@ -320,8 +288,6 @@ void MIGui::init_main_window()
         l += ")";
         m_win->copy_label(l.c_str());
     }
-
-    METHODCB(m_win, do_quit);
 
         /* top area */
         x = 0;
@@ -337,7 +303,7 @@ void MIGui::init_main_window()
             h = bt_h;
             auto bt_open = new Fl_Button(x, y, w, h, "Open");
             bt_open->clear_visible_focus();
-            METHODCB(bt_open, do_open_file);
+            METHODCB(bt_open, open_file);
 
             /* View choice */
             x += w + 10;
@@ -351,15 +317,15 @@ void MIGui::init_main_window()
             m_choice->value(0);
             m_choice->clear_visible_focus();
 
-            /* Save */
+            /* Save as */
             x += w + 10;
             y = 10;
             w = bt_w;
             h = bt_h;
-            m_btsave = new Fl_Button(x, y, w, h, "Save");
+            m_btsave = new Fl_Button(x, y, w, h, "Save as");
             m_btsave->clear_visible_focus();
             m_btsave->deactivate();
-            METHODCB(m_btsave, do_save_file);
+            METHODCB(m_btsave, save_file);
 
             /* dummy */
             x += w + 1;
@@ -377,7 +343,7 @@ void MIGui::init_main_window()
         w = m_win->w() - 20;
         h = m_win->h() - g_top->h() - 10;
 
-        /* brief and full text */
+        /* text stuff */
         m_text_disp = new Fl_Text_Display(x, y, w, h);
         m_text_disp->textfont(FL_SCREEN);
         m_text_disp->buffer(m_text_buff);
@@ -386,14 +352,6 @@ void MIGui::init_main_window()
         /* HTML */
         m_html = new Fl_Help_View(x, y, w, h);
         m_html->hide();
-
-        /* drag 'n drop area covering entire window */
-        x = 0;
-        y = 0;
-        w = m_win->w();
-        h = m_win->h();
-        m_dnd_area = new dnd_box(x, y, w, h);
-        METHODCB(m_dnd_area, do_dnd);
 
     m_win->end();
     m_win->resizable(m_text_disp);

@@ -29,11 +29,9 @@
 
 using namespace MediaInfoDLL;
 
-
-class dnd_box;
+class dnd_window;
 class Fl_Button;
 class Fl_Choice;
-class Fl_Double_Window;
 class Fl_Help_View;
 class Fl_Text_Buffer;
 class Fl_Text_Display;
@@ -45,8 +43,7 @@ private:
 
     std::string m_file;
 
-    Fl_Double_Window *m_win;
-    dnd_box *m_dnd_area;
+    dnd_window *m_win;
     Fl_Button *m_btsave;
     Fl_Choice *m_choice;
     Fl_Help_View *m_html;
@@ -61,7 +58,6 @@ private:
 
     static std::string get_brief_data(MediaInfo &mi);
 
-    void get_file_info();
     void init_main_window();
 
 public:

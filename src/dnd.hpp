@@ -26,40 +26,97 @@
 
 #include <FL/Fl.H>
 #include <FL/Fl_Box.H>
+#include <FL/Fl_Double_Window.H>
 
 
-class dnd_box : public Fl_Box
+class dnd_window : public Fl_Double_Window
 {
 private:
 
+    /* A dnd box will be shown when a dnd event has started
+     * and it will be hidden when it has stopped.
+     * That way the overlaying dnd box won't interfere with
+     * other widgets when it's not needed. */
+    class dnd_box : public Fl_Box
+    {
+    private:
+
+        int handle(int event)
+        {
+            int rv = Fl_Box::handle(event);
+
+            switch (event)
+            {
+            case FL_DND_ENTER:
+            case FL_DND_DRAG:
+            case FL_DND_LEAVE:
+            case FL_DND_RELEASE:
+                rv = 1;
+                break;
+            case FL_PASTE:
+                /* hide box on paste */
+                hide();
+                do_callback();
+                rv = 1;
+                break;
+            }
+
+            return rv;
+        }
+
+
+    public:
+
+        dnd_box(int X, int Y, int W, int H)
+        : Fl_Box(FL_NO_BOX, X, Y, W, H, NULL)
+        {}
+
+        virtual ~dnd_box()
+        {}
+    };
+
+
+    dnd_box *m_dnd = NULL;
+
     int handle(int event)
     {
-        int rv = Fl_Box::handle(event);
-
         switch (event)
         {
         case FL_DND_ENTER:
-        case FL_DND_DRAG:
-        case FL_DND_RELEASE:
-            rv = 1;
+            if (m_dnd) { m_dnd->show(); }
             break;
-        case FL_PASTE:
-            do_callback();
-            rv = 1;
+        case FL_DND_LEAVE:
+            if (m_dnd) { m_dnd->hide(); }
             break;
         }
 
-        return rv;
+        return Fl_Double_Window::handle(event);
     }
 
 
 public:
 
-    dnd_box(int X, int Y, int W, int H)
-    : Fl_Box(FL_NO_BOX, X, Y, W, H, NULL)
+    dnd_window(int W, int H, const char *L = NULL)
+    : Fl_Double_Window(W, H, L)
     {}
 
-    ~dnd_box()
+    virtual ~dnd_window()
     {}
+
+    /* set Drag and Drop callback (do this before calling end()) */
+    void dnd(Fl_Callback *dnd_callback, void *user_data)
+    {
+        if (!dnd_callback) {
+            return;
+        }
+
+        /* create widget and set size to window dimensions */
+        if (!m_dnd) {
+            m_dnd = new dnd_box(0, 0, w(), h());
+        }
+
+        m_dnd->hide();
+        m_dnd->callback(dnd_callback, user_data);
+    }
 };
 
