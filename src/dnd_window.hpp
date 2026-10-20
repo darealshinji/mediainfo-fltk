@@ -64,7 +64,6 @@ private:
             return rv;
         }
 
-
     public:
 
         dnd_box(int X, int Y, int W, int H)
@@ -77,22 +76,22 @@ private:
 
 
     dnd_box *m_dnd = NULL;
+    Fl_Callback *m_dnd_callback = NULL;
+    void *m_dnd_user_data = NULL;
+    bool m_dnd_enabled = false;
 
     int handle(int event)
     {
-        switch (event)
-        {
-        case FL_DND_ENTER:
-            if (m_dnd) { m_dnd->show(); }
-            break;
-        case FL_DND_LEAVE:
-            if (m_dnd) { m_dnd->hide(); }
-            break;
+        if (dnd_enabled()) {
+            if (event == FL_DND_ENTER) {
+                m_dnd->show();
+            } else if (event == FL_DND_LEAVE) {
+                m_dnd->hide();
+            }
         }
 
         return Fl_Double_Window::handle(event);
     }
-
 
 public:
 
@@ -103,20 +102,26 @@ public:
     virtual ~dnd_window()
     {}
 
-    /* set Drag and Drop callback (do this before calling end()) */
-    void dnd(Fl_Callback *dnd_callback, void *user_data)
-    {
-        if (!dnd_callback) {
-            return;
-        }
+    void dnd(Fl_Callback *dnd_callback, void *user_data) {
+        m_dnd_callback = dnd_callback;
+        m_dnd_user_data = user_data;
+    }
 
-        /* create widget and set size to window dimensions */
+    bool dnd_enabled() const { return (m_dnd_enabled && m_dnd && m_dnd_callback); }
+    void dnd_enabled(bool b) { m_dnd_enabled = b; }
+
+    void end()
+    {
         if (!m_dnd) {
             m_dnd = new dnd_box(0, 0, w(), h());
+            m_dnd->hide();
         }
 
-        m_dnd->hide();
-        m_dnd->callback(dnd_callback, user_data);
+        if (m_dnd_callback) {
+            m_dnd->callback(m_dnd_callback, m_dnd_user_data);
+        }
+
+        Fl_Double_Window::end();
     }
 };
 

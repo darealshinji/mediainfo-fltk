@@ -50,14 +50,15 @@ private:
     Fl_Text_Buffer *m_text_buff;
     Fl_Text_Display *m_text_disp;
 
-    void do_open_file();
-    void do_save_file();
     void do_dnd();
-    void do_set_view();
+    void do_open_file();
     void do_quit();
+    void do_save_file();
+    void do_set_view();
 
     static std::string get_brief_data(MediaInfo &mi);
 
+    void get_file_info();
     void init_main_window();
 
 public:
