@@ -26,8 +26,9 @@
 #include <FL/fl_ask.H>
 #include <FL/Fl_Double_Window.H>
 #include <FL/Fl_PNG_Image.H>
+#include <FL/Fl_Scheme.H>
 #include <iostream>
-#include <string.h>
+#include <string>
 
 #include "icon.h"
 #include "mediainfo.hpp"
@@ -39,6 +40,9 @@
 #endif
 
 
+static const char *default_scheme = "gtk+";
+
+
 static void print_infos()
 {
     std::cout << "https://github.com/darealshinji/mediainfo-fltk\n";
@@ -47,10 +51,10 @@ static void print_infos()
 #ifdef FLTK_VERSION
     std::cout << FLTK_VERSION;
 #else
-    const int version = Fl::api_version();
-    const int major = version / 10000;
-    const int minor = (version % 10000) / 100;
-    const int patch = version % 100;
+    int version = Fl::api_version();
+    int major = version / 10000;
+    int minor = (version % 10000) / 100;
+    int patch = version % 100;
     std::cout << major << "." << minor << "." << patch;
 #endif
 
@@ -65,18 +69,56 @@ static void set_default_icon()
 }
 
 
+static void print_help(const char *prog)
+{
+    std::cout << "usage:\n"
+        << prog << " -help\n"
+        << prog << " [-s scheme] [-dc|-default-colors] file\n"
+        << "schemes:";
+
+    auto names = Fl_Scheme::names();
+
+    for (int i = 0; i < Fl_Scheme::num_schemes(); i++) {
+        std::cout << ' ' << names[i];
+    }
+
+    std::cout << " (default: " << default_scheme << ")" << std::endl;
+}
+
+
 int main(int argc, char *argv[])
 {
-    if (argc > 1 && strcmp(argv[1], "--help") == 0) {
-        std::cout << "usage: " << argv[0] << " [FILE]" << std::endl;
-        return 0;
+    /* use GTK+ scheme and system colors by default */
+    const char *scheme = default_scheme;
+    bool default_colors = false;
+
+    const char *file = NULL;
+
+    for (int i = 1; i < argc; i++) {
+        std::string arg{argv[i]};
+
+        if (arg == "-help" || arg == "--help") {
+            print_help(argv[0]);
+            return 0;
+        } else if (arg == "-dc" || arg == "-default-colors") {
+            default_colors = true;
+        } else if (arg == "-s" && (i+1) < argc) {
+            scheme = argv[++i];
+        } else {
+            file = argv[i];
+        }
     }
 
     print_infos();
     set_default_icon();
 
+    Fl::scheme(scheme);
+
+    if (!default_colors) {
+        Fl::get_system_colors();
+    }
+
     MIGui win;
-    const char *file = argc > 1 ? argv[1] : NULL;
     int rv = win.show(file);
 
     Fl::run();
